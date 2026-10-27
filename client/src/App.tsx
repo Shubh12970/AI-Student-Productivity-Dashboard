@@ -596,7 +596,7 @@ function addTask(event: FormEvent<HTMLFormElement>) {
                   autoFocus
                   value={newTaskTitle}
                   onChange={(event) => setNewTaskTitle(event.target.value)}
-                  placeholder="e.g. Revise Fourier transforms"
+                  placeholder="e.g. Exact Task to perform"
                   required
                   maxLength={120}
                 />
@@ -606,7 +606,7 @@ function addTask(event: FormEvent<HTMLFormElement>) {
                 <input
                   value={newTaskSubject}
                   onChange={(event) => setNewTaskSubject(event.target.value)}
-                  placeholder="e.g. Signals & Systems"
+                  placeholder="e.g. Subject the task falls under"
                   maxLength={60}
                 />
               </label>
