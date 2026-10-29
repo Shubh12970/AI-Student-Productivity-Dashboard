@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import {
   LayoutDashboard,
   CalendarDays,
@@ -25,7 +25,7 @@ import {
 import "./App.css";
 
 type Task = {
-  id: number;
+  id: string;
   title: string;
   subject: string;
   time: string;
@@ -33,42 +33,34 @@ type Task = {
   completed: boolean;
 };
 
-const initialTasks: Task[] = [
-  {
-    id: 1,
-    title: "Complete Signals & Systems assignment",
-    subject: "Electronics",
-    time: "Today, 6:00 PM",
-    priority: "High",
-    completed: false,
-  },
-  {
-    id: 2,
-    title: "Revise semiconductor physics",
-    subject: "Semiconductors",
-    time: "Today, 8:00 PM",
-    priority: "Medium",
-    completed: false,
-  },
-  {
-    id: 3,
-    title: "Practice React components",
-    subject: "Web Development",
-    time: "Tomorrow, 10:00 AM",
-    priority: "High",
-    completed: false,
-  },
-  {
-    id: 4,
-    title: "Review yesterday's lecture notes",
-    subject: "General",
-    time: "Completed yesterday",
-    priority: "Low",
-    completed: true,
-  },
-];
+type ApiTask = {
+  _id: string;
+  title: string;
+  description?: string;
+  dueDate?: string | null;
+  priority: "high" | "medium" | "low";
+  completed: boolean;
+};
 
-const week = [
+const API_URL = "http://localhost:5000/api/tasks";
+
+function mapApiTask(task: ApiTask): Task {
+  return {
+    id: task._id,
+    title: task.title,
+    subject: task.description?.trim() || "General",
+    time: task.dueDate
+      ? new Date(task.dueDate).toLocaleString()
+      : "No deadline set",
+    priority:
+      (task.priority.charAt(0).toUpperCase() +
+        task.priority.slice(1)) as Task["priority"],
+    completed: task.completed,
+  };
+}
+
+function App() {
+  const week = [
   { day: "Mon", value: 45 },
   { day: "Tue", value: 72 },
   { day: "Wed", value: 55 },
@@ -77,9 +69,7 @@ const week = [
   { day: "Sat", value: 95 },
   { day: "Sun", value: 38 },
 ];
-
-function App() {
-  const [tasks, setTasks] = useState(initialTasks);
+  const [tasks, setTasks] = useState<Task[]>([]);
   const [activePage, setActivePage] = useState("Dashboard");
   const [filter, setFilter] = useState("All");
   const [search, setSearch] = useState("");
@@ -89,6 +79,24 @@ function App() {
   const [newTaskSubject, setNewTaskSubject] = useState("");
   const [newTaskPriority, setNewTaskPriority] =
     useState<Task["priority"]>("Medium");
+    useEffect(() => {
+  async function fetchTasks() {
+    try {
+      const response = await fetch(API_URL);
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch tasks");
+      }
+
+      const data: ApiTask[] = await response.json();
+      setTasks(data.map(mapApiTask));
+    } catch (error) {
+      console.error("Error loading tasks:", error);
+    }
+  }
+
+  fetchTasks();
+}, []);
 
   const completedCount = tasks.filter((task) => task.completed).length;
   const pendingCount = tasks.length - completedCount;
@@ -108,36 +116,102 @@ function App() {
     return matchesSearch && matchesFilter;
   });
 
-  function toggleTask(id: number) {
+  
+async function toggleTask(id: string) {
+  const task = tasks.find((item) => item.id === id);
+
+  if (!task) return;
+
+  const updatedCompleted = !task.completed;
+
+  try {
+    const response = await fetch(`${API_URL}/${id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        completed: updatedCompleted,
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to update task");
+    }
+
+    const updatedTask: ApiTask = await response.json();
+
     setTasks((current) =>
-      current.map((task) =>
-        task.id === id ? { ...task, completed: !task.completed } : task
+      current.map((item) =>
+        item.id === id ? mapApiTask(updatedTask) : item
       )
     );
+  } catch (error) {
+    console.error("Error updating task:", error);
+    alert("Could not update task completion. Please try again.");
   }
+}
 
-function addTask(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
 
-    if (!newTaskTitle.trim()) return;
+async function deleteTask(id: string) {
+  const confirmed = window.confirm("Are you sure you want to delete this task?");
+  if (!confirmed) return;
 
-    const task: Task = {
-      id: Date.now(),
-      title: newTaskTitle.trim(),
-      subject: newTaskSubject.trim() || "General",
-      time: "No deadline set",
-      priority: newTaskPriority,
-      completed: false,
-    };
+  try {
+    const response = await fetch(`${API_URL}/${id}`, {
+      method: "DELETE",
+    });
 
-    setTasks((current) => [task, ...current]);
+    if (!response.ok) {
+      throw new Error("Failed to delete task");
+    }
+
+    setTasks((current) => current.filter((task) => task.id !== id));
+  } catch (error) {
+    console.error("Error deleting task:", error);
+    alert("Could not delete the task. Please try again.");
+  }
+}
+
+
+
+async function addTask(event: FormEvent<HTMLFormElement>) {
+  event.preventDefault();
+
+  if (!newTaskTitle.trim()) return;
+
+  try {
+    const response = await fetch(API_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        title: newTaskTitle.trim(),
+        description: newTaskSubject.trim() || "General",
+        priority: newTaskPriority.toLowerCase(),
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to create task");
+    }
+
+    const createdTask: ApiTask = await response.json();
+
+    setTasks((current) => [mapApiTask(createdTask), ...current]);
     setNewTaskTitle("");
     setNewTaskSubject("");
     setNewTaskPriority("Medium");
     setShowTaskForm(false);
     setFilter("All");
-    setActivePage("Tasks");
+    setActivePage("Dashboard");
+  } catch (error) {
+    console.error("Error creating task:", error);
+    alert("Could not save your task. Please check that the backend is running.");
   }
+}
+
 
   const navigation = [
     { label: "Dashboard", icon: LayoutDashboard },
@@ -431,6 +505,17 @@ function addTask(event: FormEvent<HTMLFormElement>) {
                           >
                             {task.priority}
                           </span>
+                          
+<button
+  type="button"
+  className="task-delete"
+  onClick={() => deleteTask(task.id)}
+  aria-label={`Delete ${task.title}`}
+  title="Delete task"
+>
+  Delete
+</button>
+
                         </div>
                       ))
                     ) : (
