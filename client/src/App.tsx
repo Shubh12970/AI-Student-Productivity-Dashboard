@@ -21,6 +21,8 @@ import {
   Target,
   MoreHorizontal,
   GraduationCap,
+  Sun,
+  Moon,
 } from "lucide-react";
 import "./App.css";
 
@@ -69,6 +71,16 @@ function App() {
   { day: "Sat", value: 95 },
   { day: "Sun", value: 38 },
 ];
+  const [darkMode, setDarkMode] = useState(
+  () => localStorage.getItem("studyflow-theme") === "dark"
+);
+  function toggleDarkMode() {
+  setDarkMode((current) => {
+    const next = !current;
+    localStorage.setItem("studyflow-theme", next ? "dark" : "light");
+    return next;
+  });
+}
   const [tasks, setTasks] = useState<Task[]>([]);
   const [activePage, setActivePage] = useState("Dashboard");
   const [filter, setFilter] = useState("All");
@@ -222,7 +234,7 @@ async function addTask(event: FormEvent<HTMLFormElement>) {
   ];
 
   return (
-    <div className="app-shell">
+    <div className={`app-container ${darkMode ? "dark-mode" : ""}`}>
       {sidebarOpen && (
         <button
           className="sidebar-backdrop"
@@ -275,6 +287,9 @@ async function addTask(event: FormEvent<HTMLFormElement>) {
         <div className="workspace-label">PERSONAL</div>
         <button className="nav-item" onClick={() => setActivePage("Settings")}>
           <Settings size={19} strokeWidth={1.8} />
+          
+
+
           <span>Settings</span>
         </button>
 
@@ -332,6 +347,19 @@ async function addTask(event: FormEvent<HTMLFormElement>) {
               />
               <kbd>⌘ K</kbd>
             </label>
+            
+
+<button
+  type="button"
+  className={`header-theme-toggle ${darkMode ? "is-dark" : ""}`}
+  onClick={toggleDarkMode}
+  aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+  title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
+>
+  {darkMode ? <Sun size={19} /> : <Moon size={19} />}
+</button>
+
+
             <button
               className="icon-button notification-button"
               aria-label="Notifications"

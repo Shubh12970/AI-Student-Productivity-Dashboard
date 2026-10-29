@@ -1351,3 +1351,329 @@ button:disabled {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Light/dark theme switch */
+.theme-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  margin: 8px 0;
+}
+
+.theme-toggle-label {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.theme-switch {
+  width: 42px;
+  height: 24px;
+  padding: 3px;
+  border: none;
+  border-radius: 999px;
+  background: #d8d4e5;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.theme-switch-on {
+  background: #8057e8;
+}
+
+.theme-switch-thumb {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: white;
+  transition: transform 0.2s ease;
+}
+
+.theme-switch-on .theme-switch-thumb {
+  transform: translateX(18px);
+}
+
+/* StudyFlow dark theme */
+.app-container.dark-mode {
+  background: #11111b;
+  color: #eeeaf8;
+}
+
+.dark-mode .sidebar,
+.dark-mode .topbar {
+  background: #181824;
+  border-color: #2d2b3c;
+}
+
+.dark-mode .main-content {
+  background: #11111b;
+}
+
+.dark-mode .stat-card,
+.dark-mode .tasks-card,
+.dark-mode .progress-card,
+.dark-mode .task-row {
+  background: #1b1a29;
+  border-color: #302d42;
+  color: #eeeaf8;
+}
+
+.dark-mode h1,
+.dark-mode h2,
+.dark-mode h3,
+.dark-mode .task-title {
+  color: #f5f1ff;
+}
+
+.dark-mode p,
+.dark-mode .task-meta,
+.dark-mode .theme-toggle-label {
+  color: #b5aecb;
+}
+
+.dark-mode input,
+.dark-mode select,
+.dark-mode textarea {
+  background: #211f31;
+  border-color: #39344f;
+  color: #f5f1ff;
+}
+
+.dark-mode .nav-item:hover,
+.dark-mode .nav-item.active {
+  background: #30234b;
+  color: #bca5ff;
+}
+
+.dark-mode .empty-state {
+  color: #b5aecb;
+}
+
+/* Theme switch in the top bar */
+.header-theme-toggle {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e9e5f2;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #6c55b5;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+.header-theme-toggle:hover {
+  background: #f1edff;
+}
+
+.dark-mode .header-theme-toggle {
+  background: #211f31;
+  color: #c6b4ff;
+  border-color: #39344f;
+}
+
+.dark-mode .header-theme-toggle:hover {
+  background: #302844;
+}
+
+/* Dark-mode surface overrides */
+.app-container.dark-mode .tasks-card,
+.app-container.dark-mode .progress-card,
+.app-container.dark-mode .stat-card {
+  background-color: #1b1a29 !important;
+  color: #eeeaf8;
+  border-color: #302d42;
+}
+
+.app-container.dark-mode .tasks-card h2,
+.app-container.dark-mode .progress-card h2,
+.app-container.dark-mode .tasks-card h3,
+.app-container.dark-mode .progress-card h3 {
+  color: #f5f1ff;
+}
+
+.app-container.dark-mode .tasks-card p,
+.app-container.dark-mode .progress-card p {
+  color: #b5aecb;
+}
+
+/* Keep search readable in both themes */
+.app-container .search-container input {
+  color: #28233b;
+  background-color: #ffffff;
+}
+
+.app-container.dark-mode .search-container input {
+  color: #f5f1ff;
+  background-color: #211f31;
+  border-color: #39344f;
+}
+
+.app-container.dark-mode .search-container input::placeholder {
+  color: #aaa2c0;
+}
+
+/* Dark theme: dashboard surfaces */
+.app-container.dark-mode .main-area {
+  background: #11111b;
+  color: #eeeaf8;
+}
+
+.app-container.dark-mode .topbar {
+  background: #181824;
+  border-color: #302d42;
+}
+
+/* Cover the dashboard cards even if existing styles override them */
+.app-container.dark-mode .main-area .tasks-card,
+.app-container.dark-mode .main-area .progress-card,
+.app-container.dark-mode .main-area .stat-card {
+  background: #1b1a29 !important;
+  color: #eeeaf8 !important;
+  border-color: #302d42 !important;
+}
+
+.app-container.dark-mode .main-area .tasks-card h2,
+.app-container.dark-mode .main-area .progress-card h2,
+.app-container.dark-mode .main-area .tasks-card h3,
+.app-container.dark-mode .main-area .progress-card h3 {
+  color: #f5f1ff !important;
+}
+
+.app-container.dark-mode .main-area .tasks-card p,
+.app-container.dark-mode .main-area .progress-card p {
+  color: #b5aecb;
+}
+
+/* Search field */
+.app-container.dark-mode .topbar .search-box {
+  background: #211f31;
+  border-color: #39344f;
+}
+
+.app-container.dark-mode .topbar .search-box input {
+  background: transparent;
+  color: #f5f1ff;
+  border-color: transparent;
+}
+
+.app-container.dark-mode .topbar .search-box input::placeholder {
+  color: #aaa2c0;
+}
+
+/* Header theme button */
+.header-theme-toggle {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e9e5f2;
+  border-radius: 12px;
+  background: #fff;
+  color: #7655d9;
+  cursor: pointer;
+}
+
+.header-theme-toggle:hover {
+  background: #f1edff;
+}
+
+.app-container.dark-mode .header-theme-toggle {
+  background: #211f31;
+  color: #c6b4ff;
+  border-color: #39344f;
+}
+
+/* ===== StudyFlow dark mode fixes ===== */
+
+.app-container.dark-mode {
+  background: #11111b;
+  color: #eeeaf8;
+}
+
+.app-container.dark-mode .main-area {
+  background: #11111b;
+  color: #eeeaf8;
+}
+
+.app-container.dark-mode .sidebar,
+.app-container.dark-mode .topbar {
+  background: #181824;
+  border-color: #302d42;
+}
+
+/* Dashboard statistic cards and content panels */
+.app-container.dark-mode .stat-card,
+.app-container.dark-mode .panel,
+.app-container.dark-mode .task-row,
+.app-container.dark-mode .focus-card {
+  background: #1b1a29 !important;
+  color: #eeeaf8 !important;
+  border-color: #302d42 !important;
+}
+
+/* Headings and text */
+.app-container.dark-mode h1,
+.app-container.dark-mode h2,
+.app-container.dark-mode h3,
+.app-container.dark-mode .task-title {
+  color: #f5f1ff !important;
+}
+
+.app-container.dark-mode p,
+.app-container.dark-mode .task-meta,
+.app-container.dark-mode .stat-note {
+  color: #b5aecb;
+}
+
+/* Search field */
+.app-container.dark-mode .search-box {
+  background: #211f31;
+  border-color: #39344f;
+  color: #f5f1ff;
+}
+
+.app-container.dark-mode .search-box input {
+  background: transparent !important;
+  color: #f5f1ff !important;
+  border-color: transparent !important;
+  outline-color: #8b6bea;
+}
+
+.app-container.dark-mode .search-box input::placeholder {
+  color: #aaa2c0;
+}
+
+/* Theme toggle */
+.header-theme-toggle {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e9e5f2;
+  border-radius: 12px;
+  background: #fff;
+  color: #7655d9;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.header-theme-toggle:hover {
+  background: #f1edff;
+}
+
+.app-container.dark-mode .header-theme-toggle {
+  background: #211f31;
+  color: #c6b4ff;
+  border-color: #39344f;
+}
