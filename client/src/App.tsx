@@ -1,759 +1,120 @@
-import { useEffect, useState, type FormEvent } from "react";
-import {
-  LayoutDashboard,
-  CalendarDays,
-  CheckSquare,
-  BookOpen,
-  BarChart3,
-  Settings,
-  Search,
-  Bell,
-  Plus,
-  ChevronDown,
-  Clock3,
-  ArrowUpRight,
-  CircleCheck,
-  Circle,
-  Sparkles,
-  Menu,
-  X,
-  Flame,
-  Target,
-  MoreHorizontal,
-  GraduationCap,
-  Sun,
-  Moon,
-} from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
 import "./App.css";
 
-type Task = {
-  id: string;
-  title: string;
-  subject: string;
-  time: string;
-  priority: "High" | "Medium" | "Low";
-  completed: boolean;
-};
+type Subject = { id: string; name: string; color: string };
+type Task = { id: string; title: string; subject: string; due: string; done: boolean; sessions: number; notes: string };
+type Log = { id: string; task: string; subject: string; date: string; minutes: number; productive: boolean; note: string };
+type Attendance = { id: string; date: string; subject: string; status: string; note: string };
+type FileItem = { id: string; name: string; subject: string; date: string; size: number };
+type Page = "Dashboard" | "Study Planner" | "Calendar" | "Analytics" | "Pomodoro" | "Attendance" | "Notes" | "Subjects" | "Settings";
+const palette = ["#29245f","#302c73","#343b91","#2850a2","#2168b5","#1688c9","#209ed9","#25b1e4","#2d91cf","#2477bd","#2b5b9b","#2a4380"];
+const dateNow = () => new Date().toISOString().slice(0,10);
+const uid = () => `${Date.now()}-${Math.random().toString(36).slice(2,7)}`;
+function load<T>(key:string, fallback:T):T { try { const v=localStorage.getItem("sf-"+key); return v ? JSON.parse(v) as T : fallback; } catch { return fallback; } }
 
-type ApiTask = {
-  _id: string;
-  title: string;
-  description?: string;
-  dueDate?: string | null;
-  priority: "high" | "medium" | "low";
-  completed: boolean;
-};
+export default function App() {
+  const [dark,setDark]=useState(()=>load("dark",false));
+  const [logged,setLogged]=useState(()=>load("logged",false));
+  const [email,setEmail]=useState(()=>load("email",""));
+  const [emailInput,setEmailInput]=useState("");
+  const [password,setPassword]=useState("");
+  const [signup,setSignup]=useState(true);
+  const [page,setPage]=useState<Page>("Dashboard");
+  const [subjects,setSubjects]=useState<Subject[]>(()=>load("subjects",[
+    {id:"s1",name:"Mathematics",color:"#2850a2"},{id:"s2",name:"Computer Science",color:"#1688c9"},{id:"s3",name:"Electronics",color:"#25b1e4"}]));
+  const [tasks,setTasks]=useState<Task[]>(()=>load("tasks",[
+    {id:"t1",title:"Revise lecture notes",subject:"s3",due:dateNow(),done:false,sessions:3,notes:""},
+    {id:"t2",title:"Practice problem set",subject:"s1",due:dateNow(),done:false,sessions:2,notes:""},
+    {id:"t3",title:"Review data structures",subject:"s2",due:dateNow(),done:true,sessions:2,notes:""}]));
+  const [logs,setLogs]=useState<Log[]>(()=>load("logs",[]));
+  const [attendance,setAttendance]=useState<Attendance[]>(()=>load("attendance",[]));
+  const [files,setFiles]=useState<FileItem[]>(()=>load("files",[]));
+  const [showTask,setShowTask]=useState(false);
+  const [taskTitle,setTaskTitle]=useState("");
+  const [taskSubject,setTaskSubject]=useState("s1");
+  const [taskDue,setTaskDue]=useState(dateNow());
+  const [taskSessions,setTaskSessions]=useState(2);
+  const [subjectName,setSubjectName]=useState("");
+  const [subjectColor,setSubjectColor]=useState(palette[5]);
+  const [pomTask,setPomTask]=useState("");
+  const [customTask,setCustomTask]=useState("");
+  const [focus,setFocus]=useState(25);
+  const [shortBreak,setShortBreak]=useState(5);
+  const [longBreak,setLongBreak]=useState(15);
+  const [shortEvery,setShortEvery]=useState(1);
+  const [longEvery,setLongEvery]=useState(4);
+  const [goal,setGoal]=useState(4);
+  const [sessionNo,setSessionNo]=useState(1);
+  const [mode,setMode]=useState<"Focus"|"Short break"|"Long break">("Focus");
+  const [seconds,setSeconds]=useState(1500);
+  const [running,setRunning]=useState(false);
+  const [reflection,setReflection]=useState("");
+  const [productive,setProductive]=useState(true);
+  const [attendanceDate,setAttendanceDate]=useState(dateNow());
+  const [attendanceSubject,setAttendanceSubject]=useState("s1");
+  const [attendanceStatus,setAttendanceStatus]=useState("Attended");
+  const [attendanceNote,setAttendanceNote]=useState("");
+  const [noteSubject,setNoteSubject]=useState("s1");
+  const [month,setMonth]=useState(new Date().getMonth());
+  const [year,setYear]=useState(new Date().getFullYear());
+  const [search,setSearch]=useState("");
+  const [nudge,setNudge]=useState("One clear goal makes a focus session easier to begin. Pick a small outcome and start there.");
+  const [noteRefresh,setNoteRefresh]=useState(7);
+  const [dailyGoal,setDailyGoal]=useState(3);
 
-const API_URL = "http://localhost:5000/api/tasks";
+  useEffect(()=>{localStorage.setItem("sf-dark",JSON.stringify(dark));},[dark]);
+  useEffect(()=>{localStorage.setItem("sf-logged",JSON.stringify(logged));},[logged]);
+  useEffect(()=>{localStorage.setItem("sf-email",JSON.stringify(email));},[email]);
+  useEffect(()=>{localStorage.setItem("sf-subjects",JSON.stringify(subjects));},[subjects]);
+  useEffect(()=>{localStorage.setItem("sf-tasks",JSON.stringify(tasks));},[tasks]);
+  useEffect(()=>{localStorage.setItem("sf-logs",JSON.stringify(logs));},[logs]);
+  useEffect(()=>{localStorage.setItem("sf-attendance",JSON.stringify(attendance));},[attendance]);
+  useEffect(()=>{localStorage.setItem("sf-files",JSON.stringify(files));},[files]);
+  useEffect(()=>{setSeconds((mode==="Focus"?focus:mode==="Short break"?shortBreak:longBreak)*60);},[mode,focus,shortBreak,longBreak]);
+  useEffect(()=>{if(!running)return;const timer=window.setInterval(()=>setSeconds(s=>{if(s<=1){window.clearInterval(timer);setRunning(false);setNudge(mode==="Focus"?"Focus block complete. Write one honest note about what helped or distracted you.":"Break complete. Return gently and choose the next tiny step.");return 0;}return s-1;}),1000);return()=>window.clearInterval(timer);},[running,mode]);
 
-function mapApiTask(task: ApiTask): Task {
-  return {
-    id: task._id,
-    title: task.title,
-    subject: task.description?.trim() || "General",
-    time: task.dueDate
-      ? new Date(task.dueDate).toLocaleString()
-      : "No deadline set",
-    priority:
-      (task.priority.charAt(0).toUpperCase() +
-        task.priority.slice(1)) as Task["priority"],
-    completed: task.completed,
-  };
+  const subject=(id:string)=>subjects.find(s=>s.id===id)||{id,name:"General",color:palette[5]};
+  const totalMinutes=logs.reduce((a,l)=>a+l.minutes,0);
+  const todayMinutes=logs.filter(l=>l.date===dateNow()).reduce((a,l)=>a+l.minutes,0);
+  const todayLogs=logs.filter(l=>l.date===dateNow());
+  const points=logs.reduce((a,l)=>a+Math.floor(l.minutes/5)+(l.productive?5:0),0);
+  const streak=useMemo(()=>{let n=0,d=new Date();const days=new Set(logs.filter(l=>l.productive).map(l=>l.date));while(days.has(d.toISOString().slice(0,10))){n++;d.setDate(d.getDate()-1);}return n;},[logs]);
+  const minutesOn=(date:string)=>logs.filter(l=>l.date===date).reduce((a,l)=>a+l.minutes,0);
+  const time=(s:number)=>`${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`;
+  const nav: {label:Page;icon:string;group:string}[]=[
+    {label:"Dashboard",icon:"▦",group:"STUDY SPACE"},{label:"Study Planner",icon:"☷",group:"STUDY SPACE"},{label:"Calendar",icon:"▦",group:"STUDY SPACE"},{label:"Analytics",icon:"▥",group:"STUDY SPACE"},{label:"Pomodoro",icon:"◷",group:"STUDY SPACE"},
+    {label:"Attendance",icon:"✓",group:"YOUR ACADEMICS"},{label:"Notes",icon:"▤",group:"YOUR ACADEMICS"},{label:"Subjects",icon:"▣",group:"YOUR ACADEMICS"}];
+  const addTask=(e:React.FormEvent)=>{e.preventDefault();if(!taskTitle.trim())return;setTasks(ts=>[{id:uid(),title:taskTitle.trim(),subject:taskSubject,due:taskDue,done:false,sessions:Math.max(1,taskSessions),notes:""},...ts]);setTaskTitle("");setShowTask(false);};
+  const saveSession=()=>{const selected=tasks.find(t=>t.id===pomTask);const title=selected?.title||customTask.trim();if(!title){setNudge("Choose a task or type a task name before saving your focus session.");return;}setLogs(ls=>[...ls,{id:uid(),task:title,subject:selected?.subject||taskSubject,date:dateNow(),minutes:focus,productive,note:reflection.trim()}]);setReflection("");setProductive(true);setSessionNo(n=>n>=goal?1:n+1);setNudge("Session saved. You showed up for your work. That counts.");};
+  const saveAttendance=(e:React.FormEvent)=>{e.preventDefault();setAttendance(a=>[...a.filter(x=>!(x.date===attendanceDate&&x.subject===attendanceSubject)),{id:uid(),date:attendanceDate,subject:attendanceSubject,status:attendanceStatus,note:attendanceNote.trim()}]);setAttendanceNote("");};
+  const addSubject=(e:React.FormEvent)=>{e.preventDefault();if(!subjectName.trim())return;setSubjects(s=>[...s,{id:uid(),name:subjectName.trim(),color:subjectColor}]);setSubjectName("");};
+  const addFiles=(e:React.ChangeEvent<HTMLInputElement>)=>{const picked=Array.from(e.target.files||[]);setFiles(f=>[...picked.map(x=>({id:uid(),name:x.name,subject:noteSubject,date:dateNow(),size:x.size})),...f]);e.target.value="";};
+  const daysInMonth=new Date(year,month+1,0).getDate(), firstDay=new Date(year,month,1).getDay();
+  const attendanceStats=(sid:string)=>{const all=attendance.filter(a=>a.subject===sid&&a.status!=="No class");const attended=all.filter(a=>a.status==="Attended").length;return {attended,total:all.length,percent:all.length?Math.round(attended/all.length*100):0};};
+
+  if(!logged)return <div className={`auth-screen ${dark?"dark-mode":""}`}><span className="auth-doodle doodle-a">∑</span><span className="auth-doodle doodle-b">π</span><span className="auth-doodle doodle-c">✳</span><form className="auth-card" onSubmit={e=>{e.preventDefault();if(password.length<6)return;setEmail(emailInput.trim());setLogged(true);}}><div className="brand"><span className="brand-symbol">s.</span><div><b>studyflow</b><small>your study garden</small></div></div><p className="eyebrow">YOUR GENTLE STUDY COMPANION</p><h1>{signup?"Make room for progress.":"Welcome back."}</h1><p className="muted">A calmer place to plan, focus, and see your consistency grow.</p><label>Email address</label><input type="email" value={emailInput} onChange={e=>setEmailInput(e.target.value)} placeholder="you@example.com" required/><label>Password <small className="field-hint">6+ characters</small></label><input type="password" value={password} onChange={e=>setPassword(e.target.value)} minLength={6} placeholder="Create a password" required/><button className="primary-button full-width auth-submit">{signup?"Create my space":"Sign in"} <span>→</span></button><p className="auth-switch">{signup?"Already have a space?":"New to StudyFlow?"} <button type="button" onClick={()=>setSignup(!signup)}>{signup?"Sign in":"Create an account"}</button></p><p className="tiny-disclaimer">Demo-only sign-in stored in this browser. Gmail login and secure account storage need a backend. Do not use a real password.</p></form></div>;
+
+  return <div className={`app-shell ${dark?"dark-mode":""}`}><aside className="sidebar"><div className="brand"><span className="brand-symbol">s.</span><div><b>studyflow</b><small>your study garden</small></div></div><div className="nav-scroll">{["STUDY SPACE","YOUR ACADEMICS"].map(g=><div className="nav-group" key={g}><p className="nav-heading">{g}</p>{nav.filter(n=>n.group===g).map(n=><button key={n.label} className={`nav-item ${page===n.label?"active":""}`} onClick={()=>setPage(n.label)}><span className="nav-icon">{n.icon}</span><span>{n.label}</span>{n.label==="Pomodoro"&&<i className="nav-dot"/>}</button>)}</div>)}</div><div className="sidebar-bottom"><div className="streak-mini"><span className="flame">♨</span><div><b>{streak} day streak</b><small>Keep showing up</small></div><span className="star">✦</span></div><button className={`nav-item ${page==="Settings"?"active":""}`} onClick={()=>setPage("Settings")}><span className="nav-icon">⚙</span><span>Settings</span></button><div className="profile-row"><span className="avatar">{email.slice(0,1).toUpperCase()}</span><div className="profile-text"><b>{email.split("@")[0]}</b><small>{email}</small></div><button className="icon-button" title="Sign out" onClick={()=>setLogged(false)}>↗</button></div></div></aside>
+  <main className="main-area"><header className="topbar"><div><p className="eyebrow">{new Date().toLocaleDateString("en",{weekday:"long",month:"long",day:"numeric"})}</p><h2>{page==="Dashboard"?"A little progress goes a long way.":page}</h2></div><div className="topbar-actions"><span className="top-greeting">You’ve got this <b>✦</b></span><button className="theme-toggle" onClick={()=>setDark(v=>!v)} aria-label={dark?"Switch to light mode":"Switch to dark mode"} title={dark?"Switch to light mode":"Switch to dark mode"}><span className={`theme-thumb ${dark?"moon":"sun"}`}>{dark?"☾":"☼"}</span></button></div></header>
+  <div className="page-content">
+  {page==="Dashboard"&&<><section className="hero"><div className="hero-copy"><span className="pill">✧ YOUR DAILY CHECK-IN</span><h1>Small steps.<br/><em>Real growth.</em></h1><p>Make today count, one focused session at a time.</p><button className="hero-button" onClick={()=>setPage("Pomodoro")}>Start a focus session <span>→</span></button></div><div className="hero-art" aria-hidden="true"><div className="orbit orbit-one"/><div className="orbit orbit-two"/><div className="book-art"><span/><span/></div><i>✳</i><b>π</b><small>⌁</small></div></section>
+  <section className="stats-grid"><Stat title="Focused today" value={`${(todayMinutes/60).toFixed(1)}h`} sub={`${todayLogs.length} sessions logged`} icon="◷"/><Stat title="Tasks completed" value={`${tasks.filter(t=>t.done).length}/${tasks.length}`} sub="Every checkmark counts" icon="✓"/><Stat title="Current streak" value={`${streak} days`} sub="Build your consistency" icon="♨"/><Stat title="Points earned" value={`${points}`} sub="Your effort adds up" icon="✧"/></section>
+  <section className="two-col"><div className="panel"><div className="panel-heading"><div><p className="eyebrow">YOUR PRIORITIES</p><h3>Today’s tasks</h3></div><button className="text-button" onClick={()=>setPage("Study Planner")}>View planner →</button></div>{tasks.filter(t=>!t.done).slice(0,4).map(t=><TaskRow key={t.id} task={t} subject={subject(t.subject)} toggle={()=>setTasks(ts=>ts.map(x=>x.id===t.id?{...x,done:!x.done}:x))} edit={()=>{const n=window.prompt("Task notes",t.notes);if(n!==null)setTasks(ts=>ts.map(x=>x.id===t.id?{...x,notes:n}:x));}}/>)}{!tasks.some(t=>!t.done)&&<Empty text="Nothing pending. Add a task to plan your next win."/>}<button className="add-task-line" onClick={()=>{setShowTask(true);setPage("Study Planner");}}>＋ Add a task</button></div>
+  <div className="panel"><div className="panel-heading"><div><p className="eyebrow">YOUR FOCUS RHYTHM</p><h3>Today at a glance</h3></div><span className="mini-icon">▥</span></div><div className="focus-total"><b>{(todayMinutes/60).toFixed(1)}<small>h</small></b><span>focused today</span></div><div className="mini-chart">{Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-(6-i));const mins=logs.filter(l=>l.date===d.toISOString().slice(0,10)).reduce((a,l)=>a+l.minutes,0);return <div className="bar-col" key={i}><div className="bar-track"><span style={{height:`${Math.max(4,Math.min(100,mins/180*100))}%`}}/></div><small>{d.toLocaleDateString("en",{weekday:"short"}).slice(0,1)}</small></div>;})}</div><div className="chart-foot"><span>● Focus minutes</span><button className="text-button" onClick={()=>setPage("Analytics")}>Details →</button></div></div></section>
+  <section className="two-col lower-grid"><div className="panel"><div className="panel-heading"><div><p className="eyebrow">YOUR SUBJECTS</p><h3>Study by subject</h3></div><button className="icon-button" onClick={()=>setPage("Subjects")}>→</button></div>{subjects.slice(0,4).map(s=><div className="subject-progress" key={s.id}><div><i style={{background:s.color}}/>{s.name}<b>{(logs.filter(l=>l.subject===s.id).reduce((a,l)=>a+l.minutes,0)/60).toFixed(1)}h</b></div><div className="progress"><span style={{width:`${totalMinutes?logs.filter(l=>l.subject===s.id).reduce((a,l)=>a+l.minutes,0)/totalMinutes*100:0}%`,background:s.color}}/></div></div>)}</div><div className="panel ai-panel"><div className="ai-title"><span className="ai-icon">✧</span><div><p className="eyebrow">STUDYFLOW GUIDE</p><h3>A gentle nudge</h3></div></div><p>{nudge}</p><div className="ai-actions"><button className="secondary-button" onClick={()=>{const t=tasks.find(t=>!t.done);setNudge(t?`Try “${t.title}” for one ${focus}-minute focus block. Put your phone away and decide what “done” means before starting.`:"You have no pending tasks. Add one small, specific task and give it a realistic time estimate.");}}>Suggest my next step</button><button className="icon-button" onClick={()=>setPage("Pomodoro")}>→</button></div></div></section></>}
+  {page==="Study Planner"&&<><PageIntro eyebrow="MAKE A PLAN THAT FITS YOUR LIFE" title="Your study planner" subtitle="Turn big intentions into clear, manageable next steps." action={<button className="primary-button" onClick={()=>setShowTask(v=>!v)}>＋ New task</button>}/>{showTask&&<form className="panel task-form" onSubmit={addTask}><h3>Create a task</h3><label>What do you want to do?</label><input value={taskTitle} onChange={e=>setTaskTitle(e.target.value)} placeholder="e.g. Revise chapter 3" required/><div className="form-grid"><div><label>Subject</label><select value={taskSubject} onChange={e=>setTaskSubject(e.target.value)}>{subjects.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></div><div><label>Due date</label><input type="date" value={taskDue} onChange={e=>setTaskDue(e.target.value)}/></div><div><label>Planned sessions</label><input type="number" min="1" max="20" value={taskSessions} onChange={e=>setTaskSessions(+e.target.value)}/></div></div><div className="form-actions"><button type="button" className="secondary-button" onClick={()=>setShowTask(false)}>Cancel</button><button className="primary-button">Save task</button></div></form>}<div className="panel"><div className="panel-heading"><div><p className="eyebrow">YOUR TASK LIST</p><h3>{tasks.filter(t=>!t.done).length} tasks in progress</h3></div><span className="badge">{tasks.filter(t=>t.done).length} completed</span></div>{tasks.map(t=><div className="planner-task" key={t.id}><button className={`task-check ${t.done?"checked":""}`} onClick={()=>setTasks(ts=>ts.map(x=>x.id===t.id?{...x,done:!x.done}:x))}>{t.done?"✓":""}</button><div className="planner-task-main"><b className={t.done?"strike":""}>{t.title}</b><small><i style={{background:subject(t.subject).color}}/>{subject(t.subject).name} · Due {t.due} · {t.sessions} Pomodoro sessions</small>{t.notes&&<p className="task-note">{t.notes}</p>}</div><button className="icon-button" title="Edit notes" onClick={()=>{const n=window.prompt("Task notes",t.notes);if(n!==null)setTasks(ts=>ts.map(x=>x.id===t.id?{...x,notes:n}:x));}}>▤</button><button className="icon-button danger" title="Delete task" onClick={()=>setTasks(ts=>ts.filter(x=>x.id!==t.id))}>×</button></div>)}</div></>}
+  {page==="Pomodoro"&&<><PageIntro eyebrow="FOCUS, REST, REPEAT" title="Your focus studio" subtitle="Build a rhythm that works with your energy."/><div className="pomodoro-layout"><div className="panel timer-panel"><div className="timer-tabs">{(["Focus","Short break","Long break"] as const).map(m=><button key={m} className={mode===m?"selected":""} onClick={()=>{setMode(m);setRunning(false);}}>{m}</button>)}</div><div className="timer-ring"><div><small>{mode==="Focus"?"STAY WITH IT":mode==="Short break"?"BREATHE":"RESET YOUR MIND"}</small><strong>{time(seconds)}</strong><span>{mode==="Focus"?"One thing at a time":"Come back refreshed"}</span></div></div><div className="timer-controls"><button className="primary-button" onClick={()=>{if(seconds===0)setSeconds((mode==="Focus"?focus:mode==="Short break"?shortBreak:longBreak)*60);setRunning(v=>!v);}}>{running?"Pause timer":"Start timer"} →</button><button className="secondary-button" onClick={()=>{setRunning(false);setSeconds((mode==="Focus"?focus:mode==="Short break"?shortBreak:longBreak)*60);}}>Reset</button></div><div className="session-stepper">Session <b>{sessionNo} <small>of {goal}</small></b><span>{Array.from({length:Math.min(8,goal)},(_,i)=><i key={i} className={i<sessionNo?"filled":""}/>)}</span></div></div><div className="pomodoro-side"><div className="panel"><div className="panel-heading"><div><p className="eyebrow">YOUR RHYTHM</p><h3>Timer settings</h3></div><span className="mini-icon">⚙</span></div><label>Choose a task</label><select value={pomTask} onChange={e=>setPomTask(e.target.value)}><option value="">Select task…</option>{tasks.map(t=><option value={t.id} key={t.id}>{t.title}</option>)}</select><label>Or type a focus task</label><input value={customTask} onChange={e=>setCustomTask(e.target.value)} placeholder="e.g. Read 8 pages"/><div className="form-grid two"><div><label>Focus minutes</label><input type="number" min="1" max="180" value={focus} onChange={e=>setFocus(Math.max(1,+e.target.value||1))}/></div><div><label>Short break</label><input type="number" min="1" max="60" value={shortBreak} onChange={e=>setShortBreak(Math.max(1,+e.target.value||1))}/></div><div><label>Long break</label><input type="number" min="1" max="90" value={longBreak} onChange={e=>setLongBreak(Math.max(1,+e.target.value||1))}/></div><div><label>Sessions planned</label><input type="number" min="1" max="20" value={goal} onChange={e=>{setGoal(Math.max(1,Math.min(20,+e.target.value||1)));setSessionNo(1);}}/></div><div><label>Short break every</label><select value={shortEvery} onChange={e=>setShortEvery(+e.target.value)}><option value={1}>Every session</option><option value={2}>Every 2 sessions</option><option value={3}>Every 3 sessions</option></select></div><div><label>Long break after</label><select value={longEvery} onChange={e=>setLongEvery(+e.target.value)}><option value={2}>2 sessions</option><option value={3}>3 sessions</option><option value={4}>4 sessions</option><option value={5}>5 sessions</option></select></div></div><p className="helper">Plan: {focus} min focus · {shortBreak} min short break · {longBreak} min long break. Choose the break tab when ready.</p></div><div className="panel"><p className="eyebrow">AFTER A FOCUS SESSION</p><h3>Check in with yourself</h3><p className="muted small">What helped you focus? What pulled you away?</p><textarea rows={3} value={reflection} onChange={e=>setReflection(e.target.value)} placeholder="I lost focus when… next time I’ll try…"/><label className="check-label"><input type="checkbox" checked={productive} onChange={e=>setProductive(e.target.checked)}/> This session felt productive</label><button className="primary-button full-width" onClick={saveSession}>✓ Save focus session</button></div></div></div><div className="panel history-panel"><div className="panel-heading"><div><p className="eyebrow">RECENT WORK</p><h3>Session notes</h3></div><span className="badge">{logs.length} saved</span></div>{logs.slice().reverse().slice(0,6).map(l=><History key={l.id} log={l} color={subject(l.subject).color}/>)}{!logs.length&&<Empty text="Completed focus sessions and reflections will appear here."/>}</div></>}
+  {page==="Calendar"&&<><PageIntro eyebrow="CONSISTENCY, MADE VISIBLE" title="Your study calendar" subtitle="Every focused day is a little square of progress."/><div className="calendar-layout"><div className="panel"><div className="calendar-month"><button className="icon-button" onClick={()=>{const d=new Date(year,month-1,1);setMonth(d.getMonth());setYear(d.getFullYear());}}>‹</button><h3>{new Date(year,month,1).toLocaleDateString("en",{month:"long",year:"numeric"})}</h3><button className="icon-button" onClick={()=>{const d=new Date(year,month+1,1);setMonth(d.getMonth());setYear(d.getFullYear());}}>›</button></div><div className="calendar-grid weekdays">{["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(d=><span key={d}>{d}</span>)}</div><div className="calendar-grid">{Array.from({length:firstDay},(_,i)=><div key={`b${i}`} className="day blank"/>)}{Array.from({length:daysInMonth},(_,i)=>{const day=i+1,d=`${year}-${String(month+1).padStart(2,"0")}-${String(day).padStart(2,"0")}`,mins=minutesOn(d);return <div key={d} className={`day ${mins?"studied":""} ${d===dateNow()?"today":""}`} title={`${d}: ${mins} focus minutes`}><span>{day}</span>{mins>0&&<i/>}</div>;})}</div><div className="legend"><span>Less</span>{["#e2efff","#9bcff1","#4b9bd3","#2168b5","#29245f"].map(c=><i key={c} style={{background:c}}/>)}<span>More focus</span></div></div><div className="calendar-side"><div className="panel streak-panel"><span className="streak-flame">♨</span><p className="eyebrow">CURRENT STREAK</p><strong>{streak} days</strong><p>Show up for a little bit today to keep your chain going.</p><button className="secondary-button full-width" onClick={()=>setPage("Pomodoro")}>Start a session</button></div><div className="panel"><p className="eyebrow">UP NEXT</p><h3>Upcoming tasks</h3>{tasks.filter(t=>!t.done).sort((a,b)=>a.due.localeCompare(b.due)).slice(0,5).map(t=><div className="upcoming" key={t.id}><i style={{background:subject(t.subject).color}}/><div><b>{t.title}</b><small>{t.due}</small></div></div>)}</div></div></div><div className="panel heatmap-panel"><div className="panel-heading"><div><p className="eyebrow">YOUR CONSISTENCY</p><h3>Recent activity</h3></div><span className="badge">{(totalMinutes/60).toFixed(1)} total hours</span></div><div className="heatmap">{Array.from({length:84},(_,i)=>{const d=new Date();d.setDate(d.getDate()-(83-i));const mins=minutesOn(d.toISOString().slice(0,10));return <i key={i} className={`level-${mins===0?0:mins<30?1:mins<60?2:mins<120?3:4}`} title={`${mins} minutes`}/>})}</div><p className="muted small">Each square represents one day. Activity is stored in this browser.</p></div></>}
+  {page==="Analytics"&&<><PageIntro eyebrow="NOTICE YOUR PROGRESS" title="Your study analytics" subtitle="Use patterns as information, not as a judgement."/><section className="stats-grid"><Stat title="Total focus time" value={`${(totalMinutes/60).toFixed(1)}h`} sub="Across saved sessions" icon="◷"/><Stat title="Focus sessions" value={`${logs.length}`} sub="Every start matters" icon="✓"/><Stat title="Productive sessions" value={`${logs.filter(l=>l.productive).length}`} sub={`${logs.length?Math.round(logs.filter(l=>l.productive).length/logs.length*100):0}% marked productive`} icon="✧"/><Stat title="Points earned" value={`${points}`} sub="Effort adds up" icon="♨"/></section><div className="two-col analytics-grid"><div className="panel"><div className="panel-heading"><div><p className="eyebrow">TIME BY SUBJECT</p><h3>Where your time goes</h3></div></div>{subjects.map(s=><div className="subject-progress" key={s.id}><div><i style={{background:s.color}}/>{s.name}<b>{(logs.filter(l=>l.subject===s.id).reduce((a,l)=>a+l.minutes,0)/60).toFixed(1)}h</b></div><div className="progress"><span style={{width:`${totalMinutes?logs.filter(l=>l.subject===s.id).reduce((a,l)=>a+l.minutes,0)/totalMinutes*100:0}%`,background:s.color}}/></div></div>)}</div><div className="panel"><p className="eyebrow">DAILY FOCUS GOAL</p><h3>Make time for you</h3><div className="goal-number">{(todayMinutes/60).toFixed(1)} <small>hours today</small></div><label>Daily goal (hours)</label><input type="number" min=".5" max="12" step=".5" value={dailyGoal} onChange={e=>setDailyGoal(Math.max(.5,+e.target.value||.5))}/><div className="progress"><span style={{width:`${Math.min(100,todayMinutes/(dailyGoal*60)*100)}%`}}/></div><p className="muted small">{Math.max(0,Math.round(dailyGoal*60-todayMinutes))} minutes to your daily goal. Rest is part of learning, too.</p></div></div><div className="panel history-panel"><div className="panel-heading"><div><p className="eyebrow">REFLECTION HISTORY</p><h3>Notes from your sessions</h3></div></div>{logs.filter(l=>l.note).slice().reverse().map(l=><History key={l.id} log={l} color={subject(l.subject).color}/>)}{!logs.some(l=>l.note)&&<Empty text="Add a reflection after a Pomodoro session to start spotting patterns."/>}</div></>}
+  {page==="Attendance"&&<><PageIntro eyebrow="KEEP YOUR ACADEMICS IN VIEW" title="Self attendance" subtitle="Track each class and remember what you missed."/><form className="panel attendance-form" onSubmit={saveAttendance}><h3>Log a class</h3><div className="form-grid three"><div><label>Date</label><input type="date" value={attendanceDate} onChange={e=>setAttendanceDate(e.target.value)} required/></div><div><label>Subject</label><select value={attendanceSubject} onChange={e=>setAttendanceSubject(e.target.value)}>{subjects.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select></div><div><label>Class status</label><select value={attendanceStatus} onChange={e=>setAttendanceStatus(e.target.value)}><option>Attended</option><option>Skipped</option><option>No class</option></select></div></div><label>Follow-up / missed notes</label><textarea rows={2} value={attendanceNote} onChange={e=>setAttendanceNote(e.target.value)} placeholder={attendanceStatus==="Skipped"?"What lecture or notes do you need to catch up on?":"Optional class notes or reminder"}/><button className="primary-button">✓ Save attendance</button></form><div className="attendance-cards">{subjects.map(s=>{const a=attendanceStats(s.id);return <div className="panel" key={s.id}><div className="subject-title"><i style={{background:s.color}}/><b>{s.name}</b></div><div className="attendance-percent">{a.percent}%</div><div className="progress"><span style={{width:`${a.percent}%`,background:s.color}}/></div><p className="muted small">{a.attended} attended out of {a.total} logged classes</p></div>})}</div><div className="panel"><div className="panel-heading"><div><p className="eyebrow">CATCH-UP LIST</p><h3>Classes to make up</h3></div><span className="badge">{attendance.filter(a=>a.status==="Skipped").length} missed</span></div>{attendance.filter(a=>a.status==="Skipped").sort((a,b)=>b.date.localeCompare(a.date)).map(a=><div className="history-row" key={a.id}><i className="missed-dot"/><div><b>{subject(a.subject).name} · {a.date}</b><small>{a.note||"Collect the missed notes or ask a classmate for the lecture summary."}</small></div><button className="secondary-button" onClick={()=>{const n=window.prompt("What do you still need to catch up on?",a.note);if(n!==null)setAttendance(as=>as.map(x=>x.id===a.id?{...x,note:n}:x));}}>Update reminder</button></div>)}{!attendance.some(a=>a.status==="Skipped")&&<Empty text="No missed classes logged. Record one here so it stays on your radar."/>}</div></>}
+  {page==="Notes"&&<><PageIntro eyebrow="YOUR PERSONAL STUDY LIBRARY" title="Notes shelf" subtitle="Keep course material in one place, organised by subject."/><div className="panel upload-panel"><span className="upload-icon">⇧</span><div><h3>Add study material</h3><p className="muted small">Upload PDFs, slides, documents, or images to make a searchable shelf.</p></div><div className="upload-actions"><select value={noteSubject} onChange={e=>setNoteSubject(e.target.value)}>{subjects.map(s=><option key={s.id} value={s.id}>{s.name}</option>)}</select><label className="primary-button upload-button">＋ Choose files<input type="file" multiple onChange={addFiles} accept=".pdf,.doc,.docx,.ppt,.pptx,.txt,.png,.jpg,.jpeg"/></label></div></div><div className="panel note-reminder"><span className="ai-icon">✧</span><div><b>Keep your notes fresh</b><p>Review your subject material every {noteRefresh} days.</p></div><select value={noteRefresh} onChange={e=>setNoteRefresh(+e.target.value)}><option value={7}>Every 7 days</option><option value={10}>Every 10 days</option><option value={14}>Every 14 days</option></select></div><div className="library-toolbar"><h3>All materials <span>{files.length}</span></h3><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search your notes…"/></div><div className="file-grid">{files.filter(f=>f.name.toLowerCase().includes(search.toLowerCase())).map(f=><div className="panel file-card" key={f.id}><span className="file-icon">▤</span><div><b>{f.name}</b><small>{subject(f.subject).name} · {f.date} · {Math.max(1,Math.round(f.size/1024))} KB</small></div><button className="icon-button danger" onClick={()=>setFiles(fs=>fs.filter(x=>x.id!==f.id))}>×</button></div>)}</div>{!files.length&&<div className="panel empty-library"><span>⌁</span><h3>Your shelf is ready</h3><p className="muted small">Upload your first file to start building your study library.</p></div>}<p className="tiny-disclaimer">File names are saved locally; file contents are not uploaded to a server and may not be available after refresh. Cloud storage needs a backend.</p></>}
+  {page==="Subjects"&&<><PageIntro eyebrow="MAKE IT YOURS" title="Your subjects" subtitle="Colour-code each course to recognise it at a glance."/><form className="panel subject-create" onSubmit={addSubject}><div><h3>Add a subject</h3><p className="muted small">Pick a colour from the palette.</p></div><input value={subjectName} onChange={e=>setSubjectName(e.target.value)} placeholder="e.g. Signals & Systems" required/><div className="palette-picker">{palette.map(c=><button type="button" key={c} style={{background:c}} className={subjectColor===c?"chosen":""} onClick={()=>setSubjectColor(c)} aria-label={`Choose ${c}`}/>)}</div><button className="primary-button">＋ Add subject</button></form><div className="subject-management">{subjects.map(s=><div className="panel subject-card" key={s.id}><span className="subject-swatch" style={{background:s.color}}/><div><b>{s.name}</b><small>{(logs.filter(l=>l.subject===s.id).reduce((a,l)=>a+l.minutes,0)/60).toFixed(1)} focused hours · {tasks.filter(t=>t.subject===s.id).length} tasks</small></div><button className="icon-button danger" onClick={()=>{if(window.confirm(`Delete ${s.name}?`))setSubjects(ss=>ss.filter(x=>x.id!==s.id));}}>×</button></div>)}</div></>}
+  {page==="Settings"&&<><PageIntro eyebrow="YOUR SPACE, YOUR RULES" title="Settings" subtitle="Make StudyFlow work for you."/><div className="panel settings-panel"><div className="settings-row"><div><b>Appearance</b><p className="muted small">Use the moon/sun switch to change themes.</p></div><button className="theme-toggle" onClick={()=>setDark(v=>!v)}><span className={`theme-thumb ${dark?"moon":"sun"}`}>{dark?"☾":"☼"}</span></button></div><div className="settings-row"><div><b>Daily focus goal</b><p className="muted small">A flexible target, not a judgement.</p></div><select value={dailyGoal} onChange={e=>setDailyGoal(+e.target.value)}>{[1,1.5,2,2.5,3,4,5,6].map(x=><option key={x} value={x}>{x} hours</option>)}</select></div><div className="settings-row"><div><b>Notes refresh reminder</b><p className="muted small">Nudge yourself to keep class notes up to date.</p></div><select value={noteRefresh} onChange={e=>setNoteRefresh(+e.target.value)}><option value={7}>Every 7 days</option><option value={10}>Every 10 days</option><option value={14}>Every 14 days</option></select></div><div className="settings-row"><div><b>Signed in as</b><p className="muted small">{email}</p></div><button className="secondary-button" onClick={()=>setLogged(false)}>Sign out</button></div></div><div className="panel security-note"><span>✧</span><div><b>About account security</b><p>This starter uses browser-local demo sign-in. Do not use a real password. Google OAuth, password hashing, protected file storage, and cross-device sync must be implemented in a backend before real users rely on it.</p></div></div></>}
+  <footer className="page-footer"><span>studyflow <b>✦</b> made for steady progress</span><span>One session at a time.</span></footer>
+  </div></main></div>;
 }
-
-function App() {
-  const week = [
-  { day: "Mon", value: 45 },
-  { day: "Tue", value: 72 },
-  { day: "Wed", value: 55 },
-  { day: "Thu", value: 88 },
-  { day: "Fri", value: 64 },
-  { day: "Sat", value: 95 },
-  { day: "Sun", value: 38 },
-];
-  const [darkMode, setDarkMode] = useState(
-  () => localStorage.getItem("studyflow-theme") === "dark"
-);
-  function toggleDarkMode() {
-  setDarkMode((current) => {
-    const next = !current;
-    localStorage.setItem("studyflow-theme", next ? "dark" : "light");
-    return next;
-  });
-}
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [activePage, setActivePage] = useState("Dashboard");
-  const [filter, setFilter] = useState("All");
-  const [search, setSearch] = useState("");
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [showTaskForm, setShowTaskForm] = useState(false);
-  const [newTaskTitle, setNewTaskTitle] = useState("");
-  const [newTaskSubject, setNewTaskSubject] = useState("");
-  const [newTaskPriority, setNewTaskPriority] =
-    useState<Task["priority"]>("Medium");
-    useEffect(() => {
-  async function fetchTasks() {
-    try {
-      const response = await fetch(API_URL);
-
-      if (!response.ok) {
-        throw new Error("Failed to fetch tasks");
-      }
-
-      const data: ApiTask[] = await response.json();
-      setTasks(data.map(mapApiTask));
-    } catch (error) {
-      console.error("Error loading tasks:", error);
-    }
-  }
-
-  fetchTasks();
-}, []);
-
-  const completedCount = tasks.filter((task) => task.completed).length;
-  const pendingCount = tasks.length - completedCount;
-  const completionRate =
-    tasks.length === 0 ? 0 : Math.round((completedCount / tasks.length) * 100);
-
-  const visibleTasks = tasks.filter((task) => {
-    const matchesSearch =
-      task.title.toLowerCase().includes(search.toLowerCase()) ||
-      task.subject.toLowerCase().includes(search.toLowerCase());
-
-    const matchesFilter =
-      filter === "All" ||
-      (filter === "Pending" && !task.completed) ||
-      (filter === "Completed" && task.completed);
-
-    return matchesSearch && matchesFilter;
-  });
-
-  
-async function toggleTask(id: string) {
-  const task = tasks.find((item) => item.id === id);
-
-  if (!task) return;
-
-  const updatedCompleted = !task.completed;
-
-  try {
-    const response = await fetch(`${API_URL}/${id}`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        completed: updatedCompleted,
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to update task");
-    }
-
-    const updatedTask: ApiTask = await response.json();
-
-    setTasks((current) =>
-      current.map((item) =>
-        item.id === id ? mapApiTask(updatedTask) : item
-      )
-    );
-  } catch (error) {
-    console.error("Error updating task:", error);
-    alert("Could not update task completion. Please try again.");
-  }
-}
-
-
-async function deleteTask(id: string) {
-  const confirmed = window.confirm("Are you sure you want to delete this task?");
-  if (!confirmed) return;
-
-  try {
-    const response = await fetch(`${API_URL}/${id}`, {
-      method: "DELETE",
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to delete task");
-    }
-
-    setTasks((current) => current.filter((task) => task.id !== id));
-  } catch (error) {
-    console.error("Error deleting task:", error);
-    alert("Could not delete the task. Please try again.");
-  }
-}
-
-
-
-async function addTask(event: FormEvent<HTMLFormElement>) {
-  event.preventDefault();
-
-  if (!newTaskTitle.trim()) return;
-
-  try {
-    const response = await fetch(API_URL, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        title: newTaskTitle.trim(),
-        description: newTaskSubject.trim() || "General",
-        priority: newTaskPriority.toLowerCase(),
-      }),
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to create task");
-    }
-
-    const createdTask: ApiTask = await response.json();
-
-    setTasks((current) => [mapApiTask(createdTask), ...current]);
-    setNewTaskTitle("");
-    setNewTaskSubject("");
-    setNewTaskPriority("Medium");
-    setShowTaskForm(false);
-    setFilter("All");
-    setActivePage("Dashboard");
-  } catch (error) {
-    console.error("Error creating task:", error);
-    alert("Could not save your task. Please check that the backend is running.");
-  }
-}
-
-
-  const navigation = [
-    { label: "Dashboard", icon: LayoutDashboard },
-    { label: "My Tasks", icon: CheckSquare },
-    { label: "Study Planner", icon: BookOpen },
-    { label: "Calendar", icon: CalendarDays },
-    { label: "Analytics", icon: BarChart3 },
-  ];
-
-  return (
-    <div className={`app-container ${darkMode ? "dark-mode" : ""}`}>
-      {sidebarOpen && (
-        <button
-          className="sidebar-backdrop"
-          aria-label="Close navigation"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      <aside className={`sidebar ${sidebarOpen ? "sidebar-open" : ""}`}>
-        <div className="brand">
-          <div className="brand-icon">
-            <GraduationCap size={23} />
-          </div>
-          <div>
-            <span className="brand-name">StudyFlow</span>
-            <span className="brand-caption">STUDENT WORKSPACE</span>
-          </div>
-          <button
-            className="icon-button sidebar-close"
-            onClick={() => setSidebarOpen(false)}
-            aria-label="Close sidebar"
-          >
-            <X size={19} />
-          </button>
-        </div>
-
-        <div className="workspace-label">WORKSPACE</div>
-
-        <nav className="navigation" aria-label="Main navigation">
-          {navigation.map(({ label, icon: Icon }) => (
-            <button
-              key={label}
-              className={`nav-item ${activePage === label ? "nav-active" : ""}`}
-              onClick={() => {
-                setActivePage(label);
-                setSidebarOpen(false);
-              }}
-            >
-              <Icon size={19} strokeWidth={1.8} />
-              <span>{label}</span>
-              {label === "My Tasks" && (
-                <span className="nav-count">{pendingCount}</span>
-              )}
-            </button>
-          ))}
-        </nav>
-
-        <div className="sidebar-divider" />
-
-        <div className="workspace-label">PERSONAL</div>
-        <button className="nav-item" onClick={() => setActivePage("Settings")}>
-          <Settings size={19} strokeWidth={1.8} />
-          
-
-
-          <span>Settings</span>
-        </button>
-
-        <div className="sidebar-spacer" />
-
-        <div className="upgrade-card">
-          <div className="upgrade-icon">
-            <Sparkles size={19} />
-          </div>
-          <h3>Study smarter with AI</h3>
-          <p>Turn large assignments into manageable study steps.</p>
-          <button
-            className="upgrade-button"
-            onClick={() => setActivePage("Study Planner")}
-          >
-            Explore study planner <ArrowUpRight size={15} />
-          </button>
-        </div>
-
-        <div className="profile">
-          <div className="avatar">S</div>
-          <div className="profile-info">
-            <strong>Student</strong>
-            <span>My workspace</span>
-          </div>
-          <ChevronDown size={17} className="profile-chevron" />
-        </div>
-      </aside>
-
-      <main className="main-area">
-        <header className="topbar">
-          <div className="topbar-left">
-            <button
-              className="icon-button mobile-menu"
-              onClick={() => setSidebarOpen(true)}
-              aria-label="Open navigation"
-            >
-              <Menu size={22} />
-            </button>
-            <div className="breadcrumb">
-              <span>Workspace</span>
-              <span className="breadcrumb-slash">/</span>
-              <strong>{activePage}</strong>
-            </div>
-          </div>
-
-          <div className="topbar-right">
-            <label className="search-box">
-              <Search size={17} />
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="Search tasks..."
-                aria-label="Search tasks"
-              />
-              <kbd>⌘ K</kbd>
-            </label>
-            
-
-<button
-  type="button"
-  className={`header-theme-toggle ${darkMode ? "is-dark" : ""}`}
-  onClick={toggleDarkMode}
-  aria-label={darkMode ? "Switch to light mode" : "Switch to dark mode"}
-  title={darkMode ? "Switch to light mode" : "Switch to dark mode"}
->
-  {darkMode ? <Sun size={19} /> : <Moon size={19} />}
-</button>
-
-
-            <button
-              className="icon-button notification-button"
-              aria-label="Notifications"
-              title="Notifications"
-            >
-              <Bell size={19} />
-              <span className="notification-dot" />
-            </button>
-            <div className="top-avatar">S</div>
-          </div>
-        </header>
-
-        <div className="page-content">
-          {activePage === "Dashboard" || activePage === "My Tasks" ? (
-            <>
-              <section className="welcome-section">
-                <div>
-                  <div className="eyebrow">
-                    <span className="eyebrow-dot" />
-                    YOUR PERSONAL STUDY SPACE
-                  </div>
-                  <h1>
-                    {activePage === "Dashboard"
-                      ? "Good to see you!"
-                      : "Your tasks"}
-                    <span className="wave">✦</span>
-                  </h1>
-                  <p>
-                    {activePage === "Dashboard"
-                      ? "Make today count. One small step at a time."
-                      : "Stay organized and keep moving forward."}
-                  </p>
-                </div>
-                <button
-                  className="primary-button"
-                  onClick={() => setShowTaskForm(true)}
-                >
-                  <Plus size={18} /> Add new task
-                </button>
-              </section>
-
-              <section className="stats-grid" aria-label="Task statistics">
-                <article className="stat-card">
-                  <div className="stat-top">
-                    <span>Total tasks</span>
-                    <div className="stat-icon purple">
-                      <CheckSquare size={19} />
-                    </div>
-                  </div>
-                  <div className="stat-value">{tasks.length}</div>
-                  <div className="stat-foot">
-                    <span className="stat-note">Across your workspace</span>
-                  </div>
-                </article>
-
-                <article className="stat-card">
-                  <div className="stat-top">
-                    <span>Completed</span>
-                    <div className="stat-icon green">
-                      <CircleCheck size={19} />
-                    </div>
-                  </div>
-                  <div className="stat-value">{completedCount}</div>
-                  <div className="stat-foot">
-                    <span className="stat-positive">
-                      <ArrowUpRight size={14} /> {completionRate}%
-                    </span>
-                    <span className="stat-note">completion rate</span>
-                  </div>
-                </article>
-
-                <article className="stat-card">
-                  <div className="stat-top">
-                    <span>Pending tasks</span>
-                    <div className="stat-icon orange">
-                      <Clock3 size={19} />
-                    </div>
-                  </div>
-                  <div className="stat-value">{pendingCount}</div>
-                  <div className="stat-foot">
-                    <span className="stat-note">Ready for your focus</span>
-                  </div>
-                </article>
-
-                <article className="stat-card">
-                  <div className="stat-top">
-                    <span>Study streak</span>
-                    <div className="stat-icon pink">
-                      <Flame size={19} />
-                    </div>
-                  </div>
-                  <div className="stat-value">
-                    5 <span className="stat-unit">days</span>
-                  </div>
-                  <div className="stat-foot">
-                    <span className="stat-note">Keep the momentum going!</span>
-                  </div>
-                </article>
-              </section>
-
-              <section className="content-grid">
-                <article className="panel tasks-panel">
-                  <div className="panel-header">
-                    <div>
-                      <h2>
-                        {activePage === "Dashboard"
-                          ? "Your tasks"
-                          : "Task manager"}
-                      </h2>
-                      <p>Keep track of what matters today.</p>
-                    </div>
-                    <button
-                      className="subtle-button"
-                      onClick={() => setActivePage("My Tasks")}
-                    >
-                      View all <ArrowUpRight size={15} />
-                    </button>
-                  </div>
-
-                  <div className="task-filters" role="group" aria-label="Filter tasks">
-                    {["All", "Pending", "Completed"].map((item) => (
-                      <button
-                        key={item}
-                        onClick={() => setFilter(item)}
-                        className={`filter-button ${
-                          filter === item ? "filter-active" : ""
-                        }`}
-                      >
-                        {item}
-                        {item === "All" && (
-                          <span className="filter-count">{tasks.length}</span>
-                        )}
-                      </button>
-                    ))}
-                  </div>
-
-                  <div className="task-list">
-                    {visibleTasks.length > 0 ? (
-                      visibleTasks.map((task) => (
-                        <div
-                          className={`task-row ${
-                            task.completed ? "task-completed" : ""
-                          }`}
-                          key={task.id}
-                        >
-                          <button
-                            className="task-check"
-                            onClick={() => toggleTask(task.id)}
-                            aria-label={
-                              task.completed
-                                ? `Mark ${task.title} incomplete`
-                                : `Complete ${task.title}`
-                            }
-                          >
-                            {task.completed ? (
-                              <CircleCheck size={21} className="checked-icon" />
-                            ) : (
-                              <Circle size={21} />
-                            )}
-                          </button>
-                          <div className="task-main">
-                            <span className="task-title">{task.title}</span>
-                            <div className="task-meta">
-                              <span>{task.subject}</span>
-                              <span className="meta-dot" />
-                              <span>{task.time}</span>
-                            </div>
-                          </div>
-                          <span
-                            className={`priority priority-${task.priority.toLowerCase()}`}
-                          >
-                            {task.priority}
-                          </span>
-                          
-<button
-  type="button"
-  className="task-delete"
-  onClick={() => deleteTask(task.id)}
-  aria-label={`Delete ${task.title}`}
-  title="Delete task"
->
-  Delete
-</button>
-
-                        </div>
-                      ))
-                    ) : (
-                      <div className="empty-state">
-                        <CheckSquare size={28} />
-                        <strong>No tasks found</strong>
-                        <span>Try another filter or add a new task.</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <button
-                    className="add-task-link"
-                    onClick={() => setShowTaskForm(true)}
-                  >
-                    <Plus size={17} /> Add another task
-                  </button>
-                </article>
-
-                <div className="right-column">
-                  <article className="panel progress-panel">
-                    <div className="panel-header">
-                      <div>
-                        <h2>Weekly progress</h2>
-                        <p>Your productivity at a glance.</p>
-                      </div>
-                      <button
-                        className="icon-button more-button"
-                        aria-label="More progress options"
-                        title="Weekly progress"
-                      >
-                        <MoreHorizontal size={21} />
-                      </button>
-                    </div>
-
-                    <div className="chart-summary">
-                      <span className="chart-number">{completionRate}%</span>
-                      <span className="chart-change">
-                        <Target size={15} /> Tasks completed
-                      </span>
-                    </div>
-
-                    <div
-                      className="bar-chart"
-                      role="img"
-                      aria-label="Illustrative weekly productivity: Monday 45, Tuesday 72, Wednesday 55, Thursday 88, Friday 64, Saturday 95, Sunday 38."
-                    >
-                      {week.map((item) => (
-                        <div className="chart-column" key={item.day}>
-                          <div className="bar-track">
-                            <div
-                              className={`bar ${
-                                item.day === "Sat" ? "bar-highlight" : ""
-                              }`}
-                              style={{ height: `${item.value}%` }}
-                            />
-                          </div>
-                          <span
-                            className={`bar-label ${
-                              item.day === "Sat" ? "bar-label-active" : ""
-                            }`}
-                          >
-                            {item.day}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                    <p className="chart-footnote">
-                      <span className="chart-legend-dot" />
-                      Sample weekly activity · replace with real data later
-                    </p>
-                  </article>
-
-                  <article className="focus-card">
-                    <div className="focus-card-top">
-                      <div className="focus-icon">
-                        <Sparkles size={19} />
-                      </div>
-                      <span>YOUR NEXT STEP</span>
-                    </div>
-                    <h3>Big assignment ahead?</h3>
-                    <p>
-                      Break it down into smaller steps and build a study plan
-                      that works for you.
-                    </p>
-                    <button
-                      className="focus-button"
-                      onClick={() => setActivePage("Study Planner")}
-                    >
-                      Explore AI study planner <ArrowUpRight size={16} />
-                    </button>
-                  </article>
-                </div>
-              </section>
-
-              <footer className="page-footer">
-                <span>Made for focused minds.</span>
-                <span>StudyFlow · Your learning, organized.</span>
-              </footer>
-            </>
-          ) : (
-            <section className="placeholder-page">
-              <div className="placeholder-icon">
-                {activePage === "Study Planner" ? (
-                  <Sparkles size={28} />
-                ) : activePage === "Calendar" ? (
-                  <CalendarDays size={28} />
-                ) : activePage === "Analytics" ? (
-                  <BarChart3 size={28} />
-                ) : (
-                  <Settings size={28} />
-                )}
-              </div>
-              <h1>{activePage}</h1>
-              <p>
-                This section is part of our project roadmap. We'll build it
-                step by step after the dashboard foundation.
-              </p>
-              <button
-                className="primary-button"
-                onClick={() => setActivePage("Dashboard")}
-              >
-                <LayoutDashboard size={17} /> Back to dashboard
-              </button>
-            </section>
-          )}
-        </div>
-      </main>
-
-      {showTaskForm && (
-        <div
-          className="modal-backdrop"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
-              setShowTaskForm(false);
-            }
-          }}
-        >
-          <section
-            className="task-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="task-modal-title"
-          >
-            <div className="modal-header">
-              <div>
-                <span className="eyebrow">STAY ORGANIZED</span>
-                <h2 id="task-modal-title">Create a task</h2>
-              </div>
-              <button
-                className="icon-button"
-                onClick={() => setShowTaskForm(false)}
-                aria-label="Close form"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <form onSubmit={addTask} className="task-form">
-              <label>
-                Task title
-                <input
-                  autoFocus
-                  value={newTaskTitle}
-                  onChange={(event) => setNewTaskTitle(event.target.value)}
-                  placeholder="e.g. Exact Task to perform"
-                  required
-                  maxLength={120}
-                />
-              </label>
-              <label>
-                Subject or category
-                <input
-                  value={newTaskSubject}
-                  onChange={(event) => setNewTaskSubject(event.target.value)}
-                  placeholder="e.g. Subject the task falls under"
-                  maxLength={60}
-                />
-              </label>
-              <label>
-                Priority
-                <select
-                  value={newTaskPriority}
-                  onChange={(event) =>
-                    setNewTaskPriority(event.target.value as Task["priority"])
-                  }
-                >
-                  <option value="Low">Low</option>
-                  <option value="Medium">Medium</option>
-                  <option value="High">High</option>
-                </select>
-              </label>
-              <div className="modal-actions">
-                <button
-                  type="button"
-                  className="secondary-button"
-                  onClick={() => setShowTaskForm(false)}
-                >
-                  Cancel
-                </button>
-                <button type="submit" className="primary-button">
-                  <Plus size={17} /> Create task
-                </button>
-              </div>
-            </form>
-          </section>
-        </div>
-      )}
-    </div>
-  );
-}
-
-export default App;
+function Stat({title,value,sub,icon}:{title:string;value:string;sub:string;icon:string}){return <div className="panel stat-card"><span className="stat-icon">{icon}</span><div><small>{title}</small><strong>{value}</strong><p>{sub}</p></div><i>✧</i></div>}
+function TaskRow({task,subject,toggle,edit}:{task:Task;subject:Subject;toggle:()=>void;edit:()=>void}){return <div className={`task-row ${task.done?"is-done":""}`}><button className={`task-check ${task.done?"checked":""}`} onClick={toggle}>{task.done?"✓":""}</button><div className="task-row-copy"><b>{task.title}</b><small><i style={{background:subject.color}}/>{subject.name} · {task.sessions} sessions</small></div><button className="icon-button" title="Notes" onClick={edit}>▤</button></div>}
+function PageIntro({eyebrow,title,subtitle,action}:{eyebrow:string;title:string;subtitle:string;action?:React.ReactNode}){return <div className="page-intro"><div><p className="eyebrow">{eyebrow}</p><h1>{title}</h1><p className="muted">{subtitle}</p></div>{action}</div>}
+function Empty({text}:{text:string}){return <div className="empty-state"><span>✧</span><p>{text}</p></div>}
+function History({log,color}:{log:Log;color:string}){return <div className="history-row"><i style={{background:color}}/><div><b>{log.task}</b><small>{log.date} · {log.productive?"Productive":"Needs a reset"}{log.note?` · ${log.note}`:""}</small></div><strong>{log.minutes} min</strong></div>}
