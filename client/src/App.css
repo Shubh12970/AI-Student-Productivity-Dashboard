@@ -452,3 +452,25 @@ textarea, input, select { color: var(--text-primary); }
   .task-modal { padding: 18px; }
   .welcome-row .primary-button { width: auto; }
 }
+
+
+/* Small requested refinements: free-text Pomodoro task and unrestricted subject colours */
+.pomodoro-task-input { width: 100%; min-width: 0; padding: 11px 12px; border: 1px solid var(--border-color); background: var(--surface-soft); color: var(--text-primary); border-radius: 10px; outline: 0; font-size: 11px; }
+.subject-color-control { display: flex; align-items: center; gap: 9px; color: var(--text-secondary); font-size: 10px; font-weight: 700; white-space: nowrap; }
+.subject-color-control input[type="color"] { width: 43px; height: 36px; padding: 3px; border: 1px solid var(--border-color); border-radius: 9px; background: var(--surface); cursor: pointer; }
+.subject-inline-color { position: relative; display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; cursor: pointer; overflow: hidden; }
+.subject-inline-color input[type="color"] { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.subject-inline-color .color-swatch { width: 17px; height: 17px; border-radius: 6px; border: 1px solid var(--border-color); pointer-events: none; }
+.subject-inline-color:hover { background: var(--surface-soft); }
+/* Attendance uses subtle green for present and soft red for absent. */
+.day-cell.mark-present { background: #e1f5e8; color: #246b45; box-shadow: inset 0 -3px #55a878; }
+.day-cell.mark-absent { background: #fde7e8; color: #9e414b; box-shadow: inset 0 -3px #d97982; }
+.dark-mode .day-cell.mark-present { background: #244d3a; color: #c6f0d3; box-shadow: inset 0 -3px #65b98a; }
+.dark-mode .day-cell.mark-absent { background: #552d38; color: #ffd7dc; box-shadow: inset 0 -3px #d97982; }
+.mark-present { background: #e1f5e8; color: #246b45; border: 1px solid #b8e4c7; }
+.mark-absent { background: #fde7e8; color: #9e414b; border: 1px solid #f2c3c7; }
+.dark-mode .mark-present { background: #244d3a; color: #c6f0d3; border-color: #356e50; }
+.dark-mode .mark-absent { background: #552d38; color: #ffd7dc; border-color: #79414c; }
+.present-dot { background: #55a878; }
+.absent-dot { background: #d97982; }
+@media (max-width: 720px) { .add-subject-form { flex-wrap: wrap; } .subject-color-control { margin-left: 56px; } }
